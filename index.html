@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jazon Staff Commission Calculator</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'%3E%3Crect%20width='64'%20height='64'%20rx='12'%20fill='%2316202e'/%3E%3Ctext%20x='32'%20y='44'%20font-size='36'%20text-anchor='middle'%20fill='%234ade80'%20font-family='Arial'%3EJ%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <h1>Jazon Staff Commission Calculator</h1>
+    <p class="subtitle">GAME_GIFT Sales &amp; Staff Earnings</p>
+  </div>
+  <div class="topbar-right">
+    <div class="rates-block">
+      <div class="rates">
+        <span class="rate name">GAME_GIFT</span>
+        <span class="rate"><b>Base</b> &#8369;40/100</span>
+        <span class="rate"><b>Customer</b> &#8369;45/100</span>
+        <span class="rate"><b>Commission</b> &#8369;5/100</span>
+      </div>
+      <div class="rates rates-sub">
+        <span class="rate name">VIA_PLUS</span>
+        <span class="rate"><b>Base</b> &#8369;70/100</span>
+        <span class="rate"><b>Sell</b> &#8369;75/100</span>
+        <span class="rate"><b>Commission</b> &#8369;5/100</span>
+      </div>
+    </div>
+    <label class="staff-filter">
+      <span>Staff Filter</span>
+      <select id="staffFilter">
+        <option value="">All Staff</option>
+      </select>
+    </label>
+  </div>
+</header>
+
+<main>
+
+  <section class="cards" id="summaryCards" aria-label="Sales summary">
+    <div class="card stat"><span class="stat-label">Gross Sales</span><span class="stat-value" id="statGross">&#8369;0.00</span></div>
+    <div class="card stat"><span class="stat-label">Base Cost</span><span class="stat-value" id="statBase">&#8369;0.00</span></div>
+    <div class="card stat"><span class="stat-label">Staff Commission</span><span class="stat-value accent" id="statCommission">&#8369;0.00</span></div>
+    <div class="card stat"><span class="stat-label">Business Net</span><span class="stat-value" id="statNet">&#8369;0.00</span></div>
+    <div class="card stat"><span class="stat-label">Total Robux</span><span class="stat-value" id="statRobux">0</span></div>
+    <div class="card stat"><span class="stat-label">Total Sales</span><span class="stat-value" id="statCount">0</span></div>
+  </section>
+
+  <p class="filter-note" id="filterNote" hidden></p>
+
+  <section class="entry-grid">
+
+    <form class="card" id="catalogForm" autocomplete="off">
+      <h2>Catalog Sale</h2>
+      <p class="hint">Fixed GAME_GIFT products. Customer price comes from the final price manifest.</p>
+
+      <div class="field">
+        <label for="catStaff">Staff Name</label>
+        <input type="text" id="catStaff" list="staffList" placeholder="e.g. Juan Dela Cruz" required>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="catGame">Game</label>
+          <select id="catGame"></select>
+        </div>
+        <div class="field">
+          <label for="catQty">Quantity</label>
+          <input type="number" id="catQty" min="1" step="1" value="1" required>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="catSearch">Search Product <span class="muted" id="catCount"></span></label>
+        <input type="search" id="catSearch" placeholder="Type to filter products...">
+      </div>
+
+      <div class="field">
+        <label for="catProduct">Product</label>
+        <select id="catProduct"></select>
+      </div>
+
+      <div class="breakdown" id="catBreakdown">
+        <div class="bd-row"><span>Robux Cost</span><b id="catRobux">&#8212;</b></div>
+        <div class="bd-row"><span>Customer Price</span><b id="catPrice">&#8212;</b></div>
+        <div class="bd-row"><span>Base Cost</span><b id="catBase">&#8212;</b></div>
+        <div class="bd-row"><span>Staff Commission</span><b id="catComm" class="accent">&#8212;</b></div>
+        <div class="bd-row total"><span>Business Net</span><b id="catNet">&#8212;</b></div>
+      </div>
+
+      <button type="submit" class="btn primary" id="catAdd" disabled>Add Sale</button>
+    </form>
+
+    <form class="card" id="manualForm" autocomplete="off">
+      <h2>Manual Gift Sale</h2>
+      <p class="hint">Gamepass / item with a Robux cost you enter yourself. Rates follow the Sale Type.</p>
+
+      <div class="field">
+        <label for="manType">Sale Type</label>
+        <select id="manType">
+          <option value="GAME_GIFT">GAME_GIFT &#8212; Base &#8369;40/100 &middot; Sell &#8369;45/100 &middot; Commission &#8369;5/100</option>
+          <option value="VIA_PLUS">VIA_PLUS &#8212; Base &#8369;70/100 &middot; Sell &#8369;75/100 &middot; Commission &#8369;5/100</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="manStaff">Staff Name</label>
+        <input type="text" id="manStaff" list="staffList" placeholder="e.g. Juan Dela Cruz" required>
+      </div>
+
+      <div class="field">
+        <label for="manDesc">Description</label>
+        <input type="text" id="manDesc" placeholder="e.g. Drag Drive gamepass" required>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="manRobux">Robux Cost</label>
+          <input type="number" id="manRobux" min="1" step="1" placeholder="0" required>
+        </div>
+        <div class="field">
+          <label for="manQty">Quantity</label>
+          <input type="number" id="manQty" min="1" step="1" value="1" required>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="manPrice">Actual Selling Price <span class="muted">(optional, per item)</span></label>
+        <input type="number" id="manPrice" min="0" step="0.01" placeholder="Blank = default rate for sale type">
+      </div>
+
+      <div class="breakdown" id="manBreakdown">
+        <div class="bd-row"><span>Selling Price</span><b id="manSell">&#8212;</b></div>
+        <div class="bd-row"><span>Base Cost</span><b id="manBase">&#8212;</b></div>
+        <div class="bd-row"><span>Staff Commission</span><b id="manComm" class="accent">&#8212;</b></div>
+        <div class="bd-row total"><span>Business Net</span><b id="manNet">&#8212;</b></div>
+      </div>
+
+      <button type="submit" class="btn primary" id="manAdd" disabled>Add Sale</button>
+    </form>
+
+  </section>
+
+  <section class="card" id="earningsCard">
+    <div class="card-head">
+      <h2>Staff Earnings</h2>
+      <span class="muted" id="earningsCount"></span>
+    </div>
+    <div class="table-wrap">
+      <table id="earningsTable">
+        <thead>
+          <tr>
+            <th>Staff Name</th>
+            <th class="num">Sales</th>
+            <th class="num">Total Robux</th>
+            <th class="num">Total Sales Amount</th>
+            <th class="num">Total Commission</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="empty" id="earningsEmpty">No sales recorded yet.</p>
+  </section>
+
+  <section class="card" id="historyCard">
+    <div class="card-head">
+      <h2>Sales History</h2>
+      <div class="actions">
+        <button type="button" class="btn" id="exportBtn">Export CSV</button>
+        <button type="button" class="btn danger" id="clearBtn">Clear All Sales</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="historyTable">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Staff</th>
+            <th>Type</th>
+            <th>Game / Description</th>
+            <th>Product</th>
+            <th class="num">Robux</th>
+            <th class="num">Qty</th>
+            <th class="num">Gross Sale</th>
+            <th class="num">Base Cost</th>
+            <th class="num">Commission</th>
+            <th class="num">Business Net</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="empty" id="historyEmpty">No sales recorded yet. Add a sale above.</p>
+  </section>
+
+</main>
+
+<datalist id="staffList"></datalist>
+
+<footer class="foot">
+  <p>Local only &#8212; sales are saved in this browser via localStorage. No server, no account, no network.</p>
+</footer>
+
+<script src="catalog.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
