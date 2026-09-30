@@ -23,6 +23,9 @@
   function defaultSellCents(robux, saleType) { return robuxToCents(robux, ratesFor(saleType).customerPer100); }
   function pesosToCents(value) { return Math.round(Number(value) * 100); }
 
+  function extraMarginOf(s) { return s.grossC - s.baseC - s.commC; }
+  function businessNetOf(s) { return s.grossC - s.commC; }
+
   function fmt(cents) {
     var neg = cents < 0;
     var a = Math.abs(Math.round(cents));
@@ -179,19 +182,24 @@
     selectedProduct = p;
 
     if (!p) {
-      ['catRobux', 'catPrice', 'catBase', 'catComm', 'catNet'].forEach(function (id) { $(id).textContent = '\u2014'; });
+      ['catRobux', 'catPrice', 'catBase', 'catComm', 'catMargin', 'catNet'].forEach(function (id) { $(id).textContent = '\u2014'; });
+      $('catMargin').className = '';
       $('catNet').className = '';
       $('catAdd').disabled = true;
       return;
     }
 
     var robux = p.r, price = p.p;
-    var base = baseCents(robux, 'GAME_GIFT'), comm = commissionCents(robux, 'GAME_GIFT'), net = price - base - comm;
+    var base = baseCents(robux, 'GAME_GIFT'), comm = commissionCents(robux, 'GAME_GIFT');
+    var margin = price - base - comm;
+    var net = price - comm;
 
     $('catRobux').textContent = fmtRobux(robux * qty);
     $('catPrice').textContent = fmt(price * qty);
     $('catBase').textContent = fmt(base * qty);
     $('catComm').textContent = fmt(comm * qty);
+    $('catMargin').textContent = fmt(margin * qty);
+    $('catMargin').className = margin < 0 ? 'neg' : '';
     $('catNet').textContent = fmt(net * qty);
     $('catNet').className = net < 0 ? 'neg' : '';
     $('catAdd').disabled = false;
@@ -209,15 +217,12 @@
 
     $('manTitle').textContent = via ? 'VIA_PLUS Sale' : 'Manual Gift Sale';
     $('manHint').textContent = via
-      ? 'VIA_PLUS sale. Type the Robux amount yourself \u2014 base, selling price and commission follow the VIA_PLUS rates.'
+      ? 'VIA_PLUS sale. Type the Robux amount yourself \u2014 gross, business base and commission follow the VIA_PLUS rates.'
       : 'Gamepass / item with a Robux cost you enter yourself. Rates follow the Sale Type.';
 
     $('manRobuxLabel').textContent = via ? 'Robux Amount' : 'Robux Cost';
     $('manRobux').placeholder = via ? 'Enter Robux amount' : '0';
     $('manRobuxExamples').hidden = !via;
-
-    $('manSellLabel').textContent = via ? 'Selling Price' : 'Customer Price';
-    $('manBaseLabel').textContent = via ? 'Base Cost' : 'Business Base';
 
     $('manDesc').required = !via;
     $('manDesc').placeholder = via ? 'Optional \u2014 e.g. Roblox top-up' : 'e.g. Drag Drive gamepass';
@@ -240,30 +245,30 @@
     var saleType = currentSaleType();
     var robux = Math.floor(Number($('manRobux').value) || 0);
     var qty = Math.max(1, Math.floor(Number($('manQty').value) || 1));
-    var raw = $('manPrice').value.trim();
-    var custom = raw !== '' && isFinite(Number(raw));
-
-    $('manPrice').placeholder = 'Blank = Robux \u00d7 \u20b1' + ratesFor(saleType).customerPer100 + '/100';
 
     if (robux <= 0) {
-      ['manSell', 'manBase', 'manComm', 'manNet'].forEach(function (id) { $(id).textContent = '\u2014'; });
+      ['manSell', 'manBase', 'manComm', 'manMargin', 'manNet'].forEach(function (id) { $(id).textContent = '\u2014'; });
+      $('manMargin').className = '';
       $('manNet').className = '';
       $('manAdd').disabled = true;
       return null;
     }
 
-    var sell = custom ? pesosToCents(raw) : defaultSellCents(robux, saleType);
+    var gross = defaultSellCents(robux, saleType);
     var base = baseCents(robux, saleType), comm = commissionCents(robux, saleType);
-    var net = saleType === 'GAME_GIFT' ? (sell - comm) : (sell - base - comm);
+    var margin = gross - base - comm;
+    var net = gross - comm;
 
-    $('manSell').textContent = fmt(sell * qty) + (custom ? '' : ' (default)');
+    $('manSell').textContent = fmt(gross * qty);
     $('manBase').textContent = fmt(base * qty);
     $('manComm').textContent = fmt(comm * qty);
+    $('manMargin').textContent = fmt(margin * qty);
+    $('manMargin').className = margin < 0 ? 'neg' : '';
     $('manNet').textContent = fmt(net * qty);
     $('manNet').className = net < 0 ? 'neg' : '';
     $('manAdd').disabled = !manualValid(saleType, robux, qty);
 
-    return { saleType: saleType, robux: robux, qty: qty, sell: sell, base: base, comm: comm, net: net, custom: custom };
+    return { saleType: saleType, robux: robux, qty: qty, gross: gross, base: base, comm: comm, margin: margin, net: net };
   }
 
   /* ---------- add sale ---------- */
@@ -305,7 +310,7 @@
       grossC: price,
       baseC: base,
       commC: comm,
-      netC: price - base - comm
+      netC: price - comm
     });
 
     $('catProduct').value = '';
@@ -333,16 +338,15 @@
       product: '',
       robux: m.robux,
       qty: m.qty,
-      grossC: m.sell,
+      grossC: m.gross,
       baseC: m.base,
       commC: m.comm,
       netC: m.net,
-      customPrice: m.custom
+      customPrice: false
     });
 
     $('manDesc').value = '';
     $('manRobux').value = '';
-    $('manPrice').value = '';
     $('manQty').value = '1';
     renderManualPreview();
     flash($('manAdd'), 'Sale added');
@@ -397,11 +401,12 @@
       acc.gross += s.grossC * q;
       acc.base += s.baseC * q;
       acc.comm += s.commC * q;
-      acc.net += s.netC * q;
+      acc.margin += extraMarginOf(s) * q;
+      acc.net += businessNetOf(s) * q;
       acc.robux += s.robux * q;
       acc.count += 1;
       return acc;
-    }, { gross: 0, base: 0, comm: 0, net: 0, robux: 0, count: 0 });
+    }, { gross: 0, base: 0, comm: 0, margin: 0, net: 0, robux: 0, count: 0 });
   }
 
   function visibleSales() {
@@ -486,6 +491,7 @@
 
     body.innerHTML = rows.map(function (s) {
       var q = s.qty || 1;
+      var margin = extraMarginOf(s), net = businessNetOf(s);
       return '<tr>' +
         '<td>' + esc(fmtTime(s.ts)) + '</td>' +
         '<td>' + esc(s.staff) + '</td>' +
@@ -497,7 +503,8 @@
         '<td class="num">' + fmt(s.grossC * q) + '</td>' +
         '<td class="num">' + fmt(s.baseC * q) + '</td>' +
         '<td class="num accent">' + fmt(s.commC * q) + '</td>' +
-        '<td class="num' + (s.netC < 0 ? ' neg' : '') + '">' + fmt(s.netC * q) + '</td>' +
+        '<td class="num' + (margin < 0 ? ' neg' : '') + '">' + fmt(margin * q) + '</td>' +
+        '<td class="num' + (net < 0 ? ' neg' : '') + '">' + fmt(net * q) + '</td>' +
         '<td><button type="button" class="del-btn" data-del="' + esc(s.id) + '">Delete</button></td>' +
         '</tr>';
     }).join('');
@@ -533,7 +540,7 @@
   /* ---------- CSV ---------- */
 
   var CSV_HEAD = ['Time', 'Staff', 'Type', 'Game / Description', 'Product', 'Robux', 'Qty',
-    'Gross Sale', 'Base Cost', 'Commission', 'Business Net'];
+    'Gross Sale', 'Business Base', 'Commission', 'Extra Margin', 'Business Net'];
 
   function csvCell(v) {
     var s = String(v == null ? '' : v);
@@ -551,7 +558,9 @@
         fmtTime(s.ts), s.staff, typeLabel(s),
         s.gameDesc, s.product || '', s.robux, q,
         (s.grossC * q / 100).toFixed(2), (s.baseC * q / 100).toFixed(2),
-        (s.commC * q / 100).toFixed(2), (s.netC * q / 100).toFixed(2)
+        (s.commC * q / 100).toFixed(2),
+        (extraMarginOf(s) * q / 100).toFixed(2),
+        (businessNetOf(s) * q / 100).toFixed(2)
       ].map(csvCell).join(','));
     });
 
@@ -665,7 +674,7 @@
     $('catQty').addEventListener('input', renderCatalogPreview);
     $('catalogForm').addEventListener('submit', onCatalogSubmit);
 
-    ['manRobux', 'manQty', 'manPrice', 'manStaff', 'manDesc'].forEach(function (id) {
+    ['manRobux', 'manQty', 'manStaff', 'manDesc'].forEach(function (id) {
       $(id).addEventListener('input', renderManualPreview);
     });
     $('manType').addEventListener('change', function () {

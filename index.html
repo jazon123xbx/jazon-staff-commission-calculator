@@ -42,7 +42,7 @@
 
   <section class="cards" id="summaryCards" aria-label="Sales summary">
     <div class="card stat"><span class="stat-label">Gross Sales</span><span class="stat-value" id="statGross">&#8369;0.00</span></div>
-    <div class="card stat"><span class="stat-label">Base Cost</span><span class="stat-value" id="statBase">&#8369;0.00</span></div>
+    <div class="card stat"><span class="stat-label">Business Base</span><span class="stat-value" id="statBase">&#8369;0.00</span></div>
     <div class="card stat"><span class="stat-label">Staff Commission</span><span class="stat-value accent" id="statCommission">&#8369;0.00</span></div>
     <div class="card stat"><span class="stat-label">Business Net</span><span class="stat-value" id="statNet">&#8369;0.00</span></div>
     <div class="card stat"><span class="stat-label">Total Robux</span><span class="stat-value" id="statRobux">0</span></div>
@@ -61,7 +61,7 @@
 
     <form class="card" id="catalogForm" autocomplete="off">
       <h2>Catalog Sale</h2>
-      <p class="hint">Fixed GAME_GIFT products. Customer price comes from the final price manifest.</p>
+      <p class="hint">Fixed GAME_GIFT products. Gross sale comes from the final price manifest.</p>
 
       <div class="field">
         <label for="catStaff">Staff Name</label>
@@ -91,9 +91,10 @@
 
       <div class="breakdown" id="catBreakdown">
         <div class="bd-row"><span>Robux Cost</span><b id="catRobux">&#8212;</b></div>
-        <div class="bd-row"><span>Customer Price</span><b id="catPrice">&#8212;</b></div>
-        <div class="bd-row"><span>Base Cost</span><b id="catBase">&#8212;</b></div>
+        <div class="bd-row"><span>Gross Sale</span><b id="catPrice">&#8212;</b></div>
+        <div class="bd-row"><span>Business Base</span><b id="catBase">&#8212;</b></div>
         <div class="bd-row"><span>Staff Commission</span><b id="catComm" class="accent">&#8212;</b></div>
+        <div class="bd-row"><span>Extra Margin</span><b id="catMargin">&#8212;</b></div>
         <div class="bd-row total"><span>Business Net</span><b id="catNet">&#8212;</b></div>
       </div>
 
@@ -136,21 +137,16 @@
         </div>
       </div>
 
-      <div class="field-row">
-        <div class="field">
-          <label for="manPrice">Actual Selling Price <span class="muted">(optional, per item)</span></label>
-          <input type="number" id="manPrice" min="0" step="0.01" placeholder="Blank = default rate for sale type">
-        </div>
-        <div class="field">
-          <label for="manQty">Quantity</label>
-          <input type="number" id="manQty" min="1" step="1" value="1" required>
-        </div>
+      <div class="field">
+        <label for="manQty">Quantity</label>
+        <input type="number" id="manQty" min="1" step="1" value="1" required>
       </div>
 
       <div class="breakdown" id="manBreakdown">
-        <div class="bd-row"><span id="manSellLabel">Selling Price</span><b id="manSell">&#8212;</b></div>
-        <div class="bd-row"><span id="manBaseLabel">Base Cost</span><b id="manBase">&#8212;</b></div>
+        <div class="bd-row"><span>Gross Sale</span><b id="manSell">&#8212;</b></div>
+        <div class="bd-row"><span>Business Base</span><b id="manBase">&#8212;</b></div>
         <div class="bd-row"><span>Staff Commission</span><b id="manComm" class="accent">&#8212;</b></div>
+        <div class="bd-row"><span>Extra Margin</span><b id="manMargin">&#8212;</b></div>
         <div class="bd-row total"><span>Business Net</span><b id="manNet">&#8212;</b></div>
       </div>
       <p class="rate-note" id="manRateNote"></p>
@@ -230,8 +226,9 @@
             <th class="num">Robux</th>
             <th class="num">Qty</th>
             <th class="num">Gross Sale</th>
-            <th class="num">Base Cost</th>
+            <th class="num">Business Base</th>
             <th class="num">Commission</th>
+            <th class="num">Extra Margin</th>
             <th class="num">Business Net</th>
             <th></th>
           </tr>

@@ -22,45 +22,52 @@ totals, earnings, history and the CSV export all follow that filter.
 
 ## Locked rates
 
-| Sale type | Base | Default sell | Staff commission |
+| Sale type | Business Base | Gross sale (customer price) | Staff commission |
 | --- | --- | --- | --- |
 | GAME_GIFT (catalog + manual) | ₱40 per 100 Robux | ₱45 per 100 Robux | ₱5 per 100 Robux |
 | VIA_PLUS (manual only) | ₱70 per 100 Robux | ₱75 per 100 Robux | ₱5 per 100 Robux |
 
 ```
-GAME_GIFT:  base = robux × 40 / 100   sell = robux × 45 / 100   commission = robux × 5 / 100
-VIA_PLUS:   base = robux × 70 / 100   sell = robux × 75 / 100   commission = robux × 5 / 100
+GAME_GIFT:  business base = robux × 40 / 100   gross = robux × 45 / 100   commission = robux × 5 / 100
+VIA_PLUS:   business base = robux × 70 / 100   gross = robux × 75 / 100   commission = robux × 5 / 100
 ```
+
+## Money column meanings
+
+| Column | Meaning |
+| --- | --- |
+| **Gross Sale** | total amount paid by the customer |
+| **Business Base** | standard business share based on the base rate (₱40/100 or ₱70/100) |
+| **Staff Commission** | amount earned by staff |
+| **Extra Margin** | `Gross Sale − Business Base − Staff Commission` |
+| **Business Net** | `Gross Sale − Staff Commission` (= Business Base + Extra Margin) |
 
 Commission is always calculated **independently from Robux**. It is never derived as
 `selling price − base price`, for either sale type.
 
-**Manual GAME_GIFT business net** — the customer payment splits as
-`₱45 = ₱40 business + ₱5 staff`, so manual Business Net is
-`Gross Sale − Staff Commission` (equivalently `robux × ₱40/100`), **not**
-`Gross − Base − Commission`, which would always show ₱0. The preview labels this mode
-*Customer Price*, *Business Base*, *Staff Commission*, *Business Net*. Fixed catalog
-products keep their own behavior: `Business Net = Gross − Base Cost − Staff Commission`.
+History rows are **derived at render time** from the stored gross / base / commission
+fields, so records written before this change display correctly without any migration —
+stored records are never rewritten on page load, and old JSON backups stay restorable.
 
-Fixed catalog products do **not** use the ₱45/100 rule — they use the exact customer
-price stored in the final price manifest, and always use GAME_GIFT rates.
+Fixed catalog products do **not** use the ₱45/100 rule for gross — they use the exact
+customer price stored in the final price manifest, and always use GAME_GIFT rates for
+business base and commission.
 
 ## Two sale modes
 
-**Catalog Sale** — pick a game, search a product, set quantity. Robux Cost, Customer
-Price, Base Cost, Staff Commission and Business Net are previewed before you add.
-Product prices come from the final fixed-product price manifest.
+**Catalog Sale** — pick a game, search a product, set quantity. Robux Cost, Gross Sale,
+Business Base, Staff Commission, Extra Margin and Business Net are previewed before you
+add. Product prices come from the final fixed-product price manifest.
 
-**Manual Gift Sale** — pick a **Sale Type** (`GAME_GIFT` or `VIA_PLUS`), enter a
-Description and a Robux amount. The form relabels itself per sale type: `GAME_GIFT`
-shows **Robux Cost**, while `VIA_PLUS` shows a prominent **Robux Amount** input
-(placeholder *Enter Robux amount*) under the heading **VIA_PLUS Sale**, with quick
-example chips (100 / 200 / 500 / 1000 / 2500 / 5000). Description is required for
-GAME_GIFT and optional for VIA_PLUS. Leave *Actual Selling Price* blank to use the
-default rate for that sale type (`robux × ₱45/100` for GAME_GIFT, `robux × ₱75/100`
-for VIA_PLUS), or type an amount to override it. Staff commission always comes from
-`robux × ₱5/100` either way. The submit button reads **Add GAME_GIFT Sale** or
-**Add VIA_PLUS Sale** to match the selected type.
+**Manual Gift Sale** — pick a **Sale Type** (`GAME_GIFT` or `VIA_PLUS`), then enter a
+Description, a Robux amount and a Quantity. There is **no selling-price override**: gross
+always comes from the rate for that type (`robux × ₱45/100` for GAME_GIFT,
+`robux × ₱75/100` for VIA_PLUS) and commission from `robux × ₱5/100`. The form relabels
+itself per sale type: `GAME_GIFT` shows **Robux Cost**, while `VIA_PLUS` shows a prominent
+**Robux Amount** input (placeholder *Enter Robux amount*) under the heading **VIA_PLUS
+Sale**, with quick example chips (100 / 200 / 500 / 1000 / 2500 / 5000). Description is
+required for GAME_GIFT and optional for VIA_PLUS. The submit button reads **Add
+GAME_GIFT Sale** or **Add VIA_PLUS Sale** to match the selected type.
 
 Quantity multiplies every total in both modes.
 
@@ -68,10 +75,10 @@ Quantity multiplies every total in both modes.
 
 **Add Staff Tip** records an extra peso amount that is *not* a Robux sale: the tip is
 stored as its own history entry (`Type = TIP`, Robux `0`, Qty `1`, Gross = tip,
-Base `₱0`, Commission = tip, Business Net `₱0`). It flows straight into Staff Earnings,
-Gross Sales and Total Sales, leaves Total Robux / Base Cost / Business Net untouched,
-and works with the staff filter, CSV export and JSON backup/restore. An empty note
-is stored as `Staff Tip`.
+Business Base `₱0`, Commission = tip, Extra Margin `₱0`, Business Net `₱0`). It flows
+straight into Staff Earnings, Gross Sales and Total Sales, leaves Total Robux /
+Business Base / Business Net untouched, and works with the staff filter, CSV export and
+JSON backup/restore. An empty note is stored as `Staff Tip`.
 
 ## Backups
 
