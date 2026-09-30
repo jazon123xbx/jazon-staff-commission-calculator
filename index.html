@@ -95,8 +95,8 @@
     </form>
 
     <form class="card" id="manualForm" autocomplete="off">
-      <h2>Manual Gift Sale</h2>
-      <p class="hint">Gamepass / item with a Robux cost you enter yourself. Rates follow the Sale Type.</p>
+      <h2 id="manTitle">Manual Gift Sale</h2>
+      <p class="hint" id="manHint">Gamepass / item with a Robux cost you enter yourself. Rates follow the Sale Type.</p>
 
       <div class="field">
         <label for="manType">Sale Type</label>
@@ -112,24 +112,33 @@
       </div>
 
       <div class="field">
-        <label for="manDesc">Description</label>
+        <label for="manDesc">Description <span class="muted" id="manDescNote" hidden>(optional)</span></label>
         <input type="text" id="manDesc" placeholder="e.g. Drag Drive gamepass" required>
+      </div>
+
+      <div class="field robux-field">
+        <label for="manRobux" id="manRobuxLabel">Robux Cost</label>
+        <input type="number" id="manRobux" class="robux-input" min="1" step="1" inputmode="numeric" placeholder="0" required>
+        <div class="robux-examples" id="manRobuxExamples" hidden>
+          <span class="muted">Examples:</span>
+          <button type="button" class="chip" data-robux="100">100</button>
+          <button type="button" class="chip" data-robux="200">200</button>
+          <button type="button" class="chip" data-robux="500">500</button>
+          <button type="button" class="chip" data-robux="1000">1000</button>
+          <button type="button" class="chip" data-robux="2500">2500</button>
+          <button type="button" class="chip" data-robux="5000">5000</button>
+        </div>
       </div>
 
       <div class="field-row">
         <div class="field">
-          <label for="manRobux">Robux Cost</label>
-          <input type="number" id="manRobux" min="1" step="1" placeholder="0" required>
+          <label for="manPrice">Actual Selling Price <span class="muted">(optional, per item)</span></label>
+          <input type="number" id="manPrice" min="0" step="0.01" placeholder="Blank = default rate for sale type">
         </div>
         <div class="field">
           <label for="manQty">Quantity</label>
           <input type="number" id="manQty" min="1" step="1" value="1" required>
         </div>
-      </div>
-
-      <div class="field">
-        <label for="manPrice">Actual Selling Price <span class="muted">(optional, per item)</span></label>
-        <input type="number" id="manPrice" min="0" step="0.01" placeholder="Blank = default rate for sale type">
       </div>
 
       <div class="breakdown" id="manBreakdown">
@@ -138,8 +147,9 @@
         <div class="bd-row"><span>Staff Commission</span><b id="manComm" class="accent">&#8212;</b></div>
         <div class="bd-row total"><span>Business Net</span><b id="manNet">&#8212;</b></div>
       </div>
+      <p class="rate-note" id="manRateNote"></p>
 
-      <button type="submit" class="btn primary" id="manAdd" disabled>Add Sale</button>
+      <button type="submit" class="btn primary" id="manAdd" disabled>Add GAME_GIFT Sale</button>
     </form>
 
   </section>

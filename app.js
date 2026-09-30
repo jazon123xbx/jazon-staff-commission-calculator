@@ -140,6 +140,37 @@
     return el && RATES[el.value] ? el.value : 'GAME_GIFT';
   }
 
+  function updateManualModeUI() {
+    var saleType = currentSaleType();
+    var via = saleType === 'VIA_PLUS';
+    var r = ratesFor(saleType);
+
+    $('manTitle').textContent = via ? 'VIA_PLUS Sale' : 'Manual Gift Sale';
+    $('manHint').textContent = via
+      ? 'VIA_PLUS sale. Type the Robux amount yourself \u2014 base, selling price and commission follow the VIA_PLUS rates.'
+      : 'Gamepass / item with a Robux cost you enter yourself. Rates follow the Sale Type.';
+
+    $('manRobuxLabel').textContent = via ? 'Robux Amount' : 'Robux Cost';
+    $('manRobux').placeholder = via ? 'Enter Robux amount' : '0';
+    $('manRobuxExamples').hidden = !via;
+
+    $('manDesc').required = !via;
+    $('manDesc').placeholder = via ? 'Optional \u2014 e.g. Roblox top-up' : 'e.g. Drag Drive gamepass';
+    $('manDescNote').hidden = !via;
+
+    $('manRateNote').textContent = saleType + ': Base \u20b1' + r.basePer100 + '/100 \u00b7 Sell \u20b1' +
+      r.customerPer100 + '/100 \u00b7 Commission \u20b1' + r.commissionPer100 + '/100';
+
+    $('manAdd').textContent = via ? 'Add VIA_PLUS Sale' : 'Add GAME_GIFT Sale';
+    $('manualForm').classList.toggle('via-mode', via);
+  }
+
+  function manualValid(saleType, robux, qty) {
+    if (!$('manStaff').value.trim()) return false;
+    if (saleType !== 'VIA_PLUS' && !$('manDesc').value.trim()) return false;
+    return robux > 0 && qty >= 1;
+  }
+
   function renderManualPreview() {
     var saleType = currentSaleType();
     var robux = Math.floor(Number($('manRobux').value) || 0);
@@ -164,7 +195,7 @@
     $('manComm').textContent = fmt(comm * qty);
     $('manNet').textContent = fmt(net * qty);
     $('manNet').className = net < 0 ? 'neg' : '';
-    $('manAdd').disabled = false;
+    $('manAdd').disabled = !manualValid(saleType, robux, qty);
 
     return { saleType: saleType, robux: robux, qty: qty, sell: sell, base: base, comm: comm, net: net, custom: custom };
   }
@@ -223,7 +254,8 @@
     var staff = $('manStaff').value.trim();
     var desc = $('manDesc').value.trim();
     var m = renderManualPreview();
-    if (!staff || !desc || !m) return;
+    if (!staff || !m) return;
+    if (m.saleType !== 'VIA_PLUS' && !desc) return;
 
     pushSale({
       id: 's' + Date.now() + Math.random().toString(36).slice(2, 7),
@@ -349,7 +381,7 @@
         '<td>' + esc(fmtTime(s.ts)) + '</td>' +
         '<td>' + esc(s.staff) + '</td>' +
         '<td><span class="pill ' + typeClass(s) + '">' + esc(typeLabel(s)) + '</span></td>' +
-        '<td>' + esc(s.gameDesc) + '</td>' +
+        '<td>' + esc(s.gameDesc || '\u2014') + '</td>' +
         '<td>' + esc(s.product || '\u2014') + '</td>' +
         '<td class="num">' + fmtRobux(s.robux) + '</td>' +
         '<td class="num">' + q + '</td>' +
@@ -450,13 +482,23 @@
     $('catQty').addEventListener('input', renderCatalogPreview);
     $('catalogForm').addEventListener('submit', onCatalogSubmit);
 
-    ['manType', 'manRobux', 'manQty', 'manPrice'].forEach(function (id) {
-      $(id).addEventListener(id === 'manType' ? 'change' : 'input', renderManualPreview);
+    ['manRobux', 'manQty', 'manPrice', 'manStaff', 'manDesc'].forEach(function (id) {
+      $(id).addEventListener('input', renderManualPreview);
+    });
+    $('manType').addEventListener('change', function () {
+      updateManualModeUI();
+      renderManualPreview();
+    });
+    $('manRobuxExamples').addEventListener('click', function (e) {
+      var chip = e.target.closest ? e.target.closest('[data-robux]') : null;
+      if (!chip) return;
+      $('manRobux').value = chip.getAttribute('data-robux');
+      renderManualPreview();
     });
     $('manualForm').addEventListener('submit', onManualSubmit);
 
     // keep the two staff fields in sync for faster entry
-    $('catStaff').addEventListener('input', function () { if (this.value) $('manStaff').value = this.value; });
+    $('catStaff').addEventListener('input', function () { if (this.value) { $('manStaff').value = this.value; renderManualPreview(); } });
     $('manStaff').addEventListener('input', function () { if (this.value) $('catStaff').value = this.value; });
 
     $('staffFilter').addEventListener('change', function () { activeStaff = this.value; renderAll(); });
@@ -483,6 +525,7 @@
 
     renderAll();
     renderCatalogPreview();
+    updateManualModeUI();
     renderManualPreview();
   }
 

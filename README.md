@@ -45,10 +45,15 @@ Price, Base Cost, Staff Commission and Business Net are previewed before you add
 Product prices come from the final fixed-product price manifest.
 
 **Manual Gift Sale** — pick a **Sale Type** (`GAME_GIFT` or `VIA_PLUS`), enter a
-Description and a Robux Cost. Leave *Actual Selling Price* blank to use the default
-rate for that sale type (`robux × ₱45/100` for GAME_GIFT, `robux × ₱75/100` for
-VIA_PLUS), or type an amount to override it. Staff commission always comes from
-`robux × ₱5/100` either way.
+Description and a Robux amount. The form relabels itself per sale type: `GAME_GIFT`
+shows **Robux Cost**, while `VIA_PLUS` shows a prominent **Robux Amount** input
+(placeholder *Enter Robux amount*) under the heading **VIA_PLUS Sale**, with quick
+example chips (100 / 200 / 500 / 1000 / 2500 / 5000). Description is required for
+GAME_GIFT and optional for VIA_PLUS. Leave *Actual Selling Price* blank to use the
+default rate for that sale type (`robux × ₱45/100` for GAME_GIFT, `robux × ₱75/100`
+for VIA_PLUS), or type an amount to override it. Staff commission always comes from
+`robux × ₱5/100` either way. The submit button reads **Add GAME_GIFT Sale** or
+**Add VIA_PLUS Sale** to match the selected type.
 
 Quantity multiplies every total in both modes.
 
