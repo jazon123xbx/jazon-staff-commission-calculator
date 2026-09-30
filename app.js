@@ -55,7 +55,7 @@
     if (typeof s.id !== 'string' || !s.id) return false;
     if (typeof s.ts !== 'number' || !isFinite(s.ts)) return false;
     if (typeof s.staff !== 'string' || !s.staff) return false;
-    if (s.type !== 'catalog' && s.type !== 'manual') return false;
+    if (s.type !== 'catalog' && s.type !== 'manual' && s.type !== 'TIP') return false;
     if (s.saleType != null && s.saleType !== 'GAME_GIFT' && s.saleType !== 'VIA_PLUS') return false;
     if (s.gameDesc != null && typeof s.gameDesc !== 'string') return false;
     if (s.product != null && typeof s.product !== 'string') return false;
@@ -276,7 +276,7 @@
     var original = btn.textContent;
     btn.textContent = label;
     btn.disabled = true;
-    setTimeout(function () { btn.textContent = original; btn.disabled = false; renderCatalogPreview(); renderManualPreview(); }, 800);
+    setTimeout(function () { btn.textContent = original; btn.disabled = false; renderCatalogPreview(); renderManualPreview(); renderTipForm(); }, 800);
   }
 
   function onCatalogSubmit(e) {
@@ -342,6 +342,47 @@
     $('manQty').value = '1';
     renderManualPreview();
     flash($('manAdd'), 'Sale added');
+  }
+
+  /* ---------- staff tip ---------- */
+
+  function tipAmountCents() {
+    var raw = $('tipAmount').value.trim();
+    if (raw === '') return 0;
+    var v = Number(raw);
+    if (!isFinite(v) || v <= 0) return 0;
+    return pesosToCents(v);
+  }
+
+  function renderTipForm() {
+    $('tipAdd').disabled = !($('tipStaff').value.trim() !== '' && tipAmountCents() > 0);
+  }
+
+  function onTipSubmit(e) {
+    e.preventDefault();
+    var staff = $('tipStaff').value.trim();
+    var cents = tipAmountCents();
+    if (!staff || cents <= 0) return;
+
+    pushSale({
+      id: 's' + Date.now() + Math.random().toString(36).slice(2, 7),
+      ts: Date.now(),
+      staff: staff,
+      type: 'TIP',
+      gameDesc: $('tipNote').value.trim() || 'Staff Tip',
+      product: '',
+      robux: 0,
+      qty: 1,
+      grossC: cents,
+      baseC: 0,
+      commC: cents,
+      netC: 0
+    });
+
+    $('tipAmount').value = '';
+    $('tipNote').value = '';
+    renderTipForm();
+    flash($('tipAdd'), 'Tip added');
   }
 
   /* ---------- totals ---------- */
@@ -424,11 +465,13 @@
   }
 
   function typeLabel(s) {
+    if (s.type === 'TIP') return 'TIP';
     if (s.type === 'manual') return RATES[s.saleType] ? s.saleType : 'GAME_GIFT';
     return 'Catalog';
   }
 
   function typeClass(s) {
+    if (s.type === 'TIP') return 'tip';
     if (s.type !== 'manual') return 'catalog';
     return s.saleType === 'VIA_PLUS' ? 'via' : 'manual';
   }
@@ -633,6 +676,11 @@
     });
     $('manualForm').addEventListener('submit', onManualSubmit);
 
+    ['tipStaff', 'tipAmount', 'tipNote'].forEach(function (id) {
+      $(id).addEventListener('input', renderTipForm);
+    });
+    $('tipForm').addEventListener('submit', onTipSubmit);
+
     // keep the two staff fields in sync for faster entry
     $('catStaff').addEventListener('input', function () { if (this.value) { $('manStaff').value = this.value; renderManualPreview(); } });
     $('manStaff').addEventListener('input', function () { if (this.value) $('catStaff').value = this.value; });
@@ -673,6 +721,7 @@
     renderCatalogPreview();
     updateManualModeUI();
     renderManualPreview();
+    renderTipForm();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

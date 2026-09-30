@@ -57,6 +57,15 @@ for VIA_PLUS), or type an amount to override it. Staff commission always comes f
 
 Quantity multiplies every total in both modes.
 
+## Staff tips
+
+**Add Staff Tip** records an extra peso amount that is *not* a Robux sale: the tip is
+stored as its own history entry (`Type = TIP`, Robux `0`, Qty `1`, Gross = tip,
+Base `₱0`, Commission = tip, Business Net `₱0`). It flows straight into Staff Earnings,
+Gross Sales and Total Sales, leaves Total Robux / Base Cost / Business Net untouched,
+and works with the staff filter, CSV export and JSON backup/restore. An empty note
+is stored as `Staff Tip`.
+
 ## Backups
 
 | Button (in Sales History) | What it does |

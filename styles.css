@@ -261,6 +261,26 @@ input[type=number]{font-variant-numeric:tabular-nums}
 }
 #manualForm.via-mode .btn.primary:hover:not(:disabled){background:#372d63;border-color:#7c6cc9}
 
+/* ---- staff tip ---- */
+
+.tip-form{
+  display:grid;
+  grid-template-columns:1.2fr 170px 1.4fr auto;
+  gap:12px;
+  align-items:end;
+}
+.tip-form .field{margin-bottom:0}
+.tip-form .tip-actions{min-width:150px}
+.tip-input{font-size:18px;font-weight:650;padding:10px 12px}
+.tip-input::placeholder{font-size:14px;font-weight:400}
+
+@media (max-width:900px){
+  .tip-form{grid-template-columns:1fr 1fr}
+}
+@media (max-width:640px){
+  .tip-form{grid-template-columns:1fr}
+}
+
 .actions{display:flex;gap:8px;flex-wrap:wrap}
 
 .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
@@ -301,6 +321,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .pill.catalog{color:#93c5fd;border-color:#27446b}
 .pill.manual{color:#fcd34d;border-color:#5c4a1e}
 .pill.via{color:#c4b5fd;border-color:#4c3f7a}
+.pill.tip{color:#86efac;border-color:#1f5136;background:#13251b}
 
 .del-btn{
   background:transparent;
