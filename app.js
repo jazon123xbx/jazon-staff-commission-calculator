@@ -216,6 +216,9 @@
     $('manRobux').placeholder = via ? 'Enter Robux amount' : '0';
     $('manRobuxExamples').hidden = !via;
 
+    $('manSellLabel').textContent = via ? 'Selling Price' : 'Customer Price';
+    $('manBaseLabel').textContent = via ? 'Base Cost' : 'Business Base';
+
     $('manDesc').required = !via;
     $('manDesc').placeholder = via ? 'Optional \u2014 e.g. Roblox top-up' : 'e.g. Drag Drive gamepass';
     $('manDescNote').hidden = !via;
@@ -250,7 +253,8 @@
     }
 
     var sell = custom ? pesosToCents(raw) : defaultSellCents(robux, saleType);
-    var base = baseCents(robux, saleType), comm = commissionCents(robux, saleType), net = sell - base - comm;
+    var base = baseCents(robux, saleType), comm = commissionCents(robux, saleType);
+    var net = saleType === 'GAME_GIFT' ? (sell - comm) : (sell - base - comm);
 
     $('manSell').textContent = fmt(sell * qty) + (custom ? '' : ' (default)');
     $('manBase').textContent = fmt(base * qty);

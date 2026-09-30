@@ -35,6 +35,13 @@ VIA_PLUS:   base = robux × 70 / 100   sell = robux × 75 / 100   commission = r
 Commission is always calculated **independently from Robux**. It is never derived as
 `selling price − base price`, for either sale type.
 
+**Manual GAME_GIFT business net** — the customer payment splits as
+`₱45 = ₱40 business + ₱5 staff`, so manual Business Net is
+`Gross Sale − Staff Commission` (equivalently `robux × ₱40/100`), **not**
+`Gross − Base − Commission`, which would always show ₱0. The preview labels this mode
+*Customer Price*, *Business Base*, *Staff Commission*, *Business Net*. Fixed catalog
+products keep their own behavior: `Business Net = Gross − Base Cost − Staff Commission`.
+
 Fixed catalog products do **not** use the ₱45/100 rule — they use the exact customer
 price stored in the final price manifest, and always use GAME_GIFT rates.
 
