@@ -57,6 +57,22 @@ for VIA_PLUS), or type an amount to override it. Staff commission always comes f
 
 Quantity multiplies every total in both modes.
 
+## Backups
+
+| Button (in Sales History) | What it does |
+| --- | --- |
+| **Download JSON Backup** | Downloads the full sales array from `jazon.staff.commission.sales.v1` as `jazon-sales-backup-YYYY-MM-DD-HHMM.json`. Nothing else is included. |
+| **Restore JSON Backup** | Opens a local `.json` file picker. The file is parsed and every record validated first — malformed, unrelated or partially invalid files are rejected outright with no import. You are then asked *"Restore this backup and replace current sales history?"* before anything is overwritten. |
+| **Restore Last Backup** | Recovers from the automatic snapshot below (asks for the same confirmation). If no snapshot exists yet it simply says so. |
+
+**Automatic snapshot** — every successful save first copies the current *valid* history
+to `jazon.staff.commission.sales.backup.v1`, then writes the new history to the main key.
+Corrupt or empty data is never copied into the backup.
+
+**Load-failure protection** — if the main key cannot be read, the stored value is left
+untouched (never replaced with an empty array), a warning appears at the top of the page,
+and new sales are not written until you restore.
+
 ## Catalog source
 
 `catalog.js` is a read-only extract of the fixed GAME_GIFT products:

@@ -51,6 +51,12 @@
 
   <p class="filter-note" id="filterNote" hidden></p>
 
+  <div class="storage-warning" id="storageWarning" hidden role="alert">
+    <b>Sales history could not be read.</b>
+    <span id="storageWarningText"></span>
+    <button type="button" class="btn" id="warnRestoreBtn">Restore Last Backup</button>
+  </div>
+
   <section class="entry-grid">
 
     <form class="card" id="catalogForm" autocomplete="off">
@@ -181,7 +187,11 @@
       <h2>Sales History</h2>
       <div class="actions">
         <button type="button" class="btn" id="exportBtn">Export CSV</button>
+        <button type="button" class="btn" id="backupBtn">Download JSON Backup</button>
+        <button type="button" class="btn" id="restoreBtn">Restore JSON Backup</button>
+        <button type="button" class="btn" id="restoreLastBtn">Restore Last Backup</button>
         <button type="button" class="btn danger" id="clearBtn">Clear All Sales</button>
+        <input type="file" id="restoreFile" accept=".json,application/json" hidden>
       </div>
     </div>
     <div class="table-wrap">

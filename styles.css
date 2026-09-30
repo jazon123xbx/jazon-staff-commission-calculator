@@ -113,6 +113,24 @@ main{
   color:var(--accent-2);
 }
 
+.storage-warning{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  align-items:center;
+  background:#2a1a1a;
+  border:1px solid #7f3030;
+  border-radius:var(--radius);
+  padding:12px 14px;
+  font-size:13px;
+  color:#fecaca;
+}
+.storage-warning b{color:#fff}
+.storage-warning span{flex:1 1 260px}
+.storage-warning .btn{flex:0 0 auto}
+.storage-warning[hidden]{display:none}
+input[hidden]{display:none}
+
 .entry-grid{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));

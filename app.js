@@ -7,6 +7,7 @@
     VIA_PLUS:  { basePer100: 70, customerPer100: 75, commissionPer100: 5 }
   };
   var STORE_KEY = 'jazon.staff.commission.sales.v1';
+  var BACKUP_KEY = 'jazon.staff.commission.sales.backup.v1';
   var LAST_STAFF_KEY = 'jazon.staff.commission.lastStaff.v1';
 
   /* ---------- money helpers (integer centavos = exact 2dp) ---------- */
@@ -45,19 +46,80 @@
 
   var sales = [];
   var activeStaff = '';
+  var loadFailed = false;
+
+  /* ---------- storage safety ---------- */
+
+  function isSaleLike(s) {
+    if (!s || typeof s !== 'object' || Array.isArray(s)) return false;
+    if (typeof s.id !== 'string' || !s.id) return false;
+    if (typeof s.ts !== 'number' || !isFinite(s.ts)) return false;
+    if (typeof s.staff !== 'string' || !s.staff) return false;
+    if (s.type !== 'catalog' && s.type !== 'manual') return false;
+    if (s.saleType != null && s.saleType !== 'GAME_GIFT' && s.saleType !== 'VIA_PLUS') return false;
+    if (s.gameDesc != null && typeof s.gameDesc !== 'string') return false;
+    if (s.product != null && typeof s.product !== 'string') return false;
+    var nums = ['robux', 'qty', 'grossC', 'baseC', 'commC', 'netC'];
+    for (var i = 0; i < nums.length; i++) {
+      var v = s[nums[i]];
+      if (typeof v !== 'number' || !isFinite(v)) return false;
+    }
+    return true;
+  }
+
+  // Strict: whole file/array accepted only when every record validates.
+  function parseSaleList(text) {
+    if (typeof text !== 'string') return null;
+    var t = text.replace(/^\ufeff/, '').replace(/^\s+|\s+$/g, '');
+    if (t === '') return null;
+    var data;
+    try { data = JSON.parse(t); } catch (e) { return null; }
+    if (!Array.isArray(data)) return null;
+    for (var i = 0; i < data.length; i++) if (!isSaleLike(data[i])) return null;
+    return data;
+  }
+
+  function showStorageWarning() {
+    var el = $('storageWarning');
+    if (!el) return;
+    $('storageWarningText').textContent =
+      'The saved history in ' + STORE_KEY + ' is unreadable and has been left untouched. ' +
+      'New sales will not be written until you restore. Use "Restore Last Backup" or "Restore JSON Backup".';
+    el.hidden = false;
+  }
+
+  function hideStorageWarning() {
+    var el = $('storageWarning');
+    if (el) el.hidden = true;
+  }
 
   function load() {
-    try {
-      var raw = localStorage.getItem(STORE_KEY);
-      var parsed = raw ? JSON.parse(raw) : [];
-      sales = Array.isArray(parsed) ? parsed.filter(function (s) { return s && s.id; }) : [];
-    } catch (e) {
-      sales = [];
-    }
+    sales = [];
+    loadFailed = false;
+    var raw = null;
+    try { raw = localStorage.getItem(STORE_KEY); }
+    catch (e) { loadFailed = true; return; }
+    if (raw == null || raw === '') return;
+    var list = parseSaleList(raw);
+    if (!list) { loadFailed = true; return; }
+    sales = list;
   }
 
   function save() {
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(sales)); } catch (e) { /* storage full/blocked */ }
+    if (loadFailed) { showStorageWarning(); return false; }
+
+    // Auto-backup: snapshot the current valid history before overwriting it.
+    var raw = null;
+    try { raw = localStorage.getItem(STORE_KEY); } catch (e) { raw = null; }
+    if (raw != null && raw !== '') {
+      var prev = parseSaleList(raw);
+      if (prev && prev.length) {
+        try { localStorage.setItem(BACKUP_KEY, raw); } catch (e) { /* ignore */ }
+      }
+    }
+
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(sales)); return true; }
+    catch (e) { return false; }
   }
 
   function $(id) { return document.getElementById(id); }
@@ -459,7 +521,80 @@
     setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
   }
 
+  /* ---------- JSON backup / restore ---------- */
+
+  function pad2(n) { return n < 10 ? '0' + n : String(n); }
+
+  function backupFileName() {
+    var d = new Date();
+    return 'jazon-sales-backup-' + d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' +
+      pad2(d.getDate()) + '-' + pad2(d.getHours()) + pad2(d.getMinutes()) + '.json';
+  }
+
+  function readStoredRaw(key) {
+    try { return localStorage.getItem(key); } catch (e) { return null; }
+  }
+
+  function downloadBackup() {
+    var raw = readStoredRaw(STORE_KEY);
+    var stored = raw ? parseSaleList(raw) : null;
+    var list = stored || sales;
+    if (!list || !list.length) { alert('No sales to back up.'); return; }
+
+    var json = stored ? raw : JSON.stringify(list, null, 2);
+    var blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = backupFileName();
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  function applyRestored(list) {
+    sales = list;
+    loadFailed = false;
+    hideStorageWarning();
+    save();
+    renderAll();
+    renderCatalogPreview();
+    renderManualPreview();
+  }
+
+  function restoreFromFile(file) {
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      var list = parseSaleList(String(reader.result == null ? '' : reader.result));
+      if (!list) {
+        alert('That file is not a valid sales backup. Nothing was imported.');
+        return;
+      }
+      if (!confirm('Restore this backup and replace current sales history?')) return;
+      applyRestored(list);
+      alert('Backup restored \u2014 ' + list.length + ' sale(s).');
+    };
+    reader.onerror = function () { alert('Could not read that file. Nothing was imported.'); };
+    reader.readAsText(file);
+  }
+
+  function restoreLastBackup() {
+    var raw = readStoredRaw(BACKUP_KEY);
+    if (raw == null || raw === '') {
+      alert('No backup found yet. A backup is created automatically after you save a sale.');
+      return;
+    }
+    var list = parseSaleList(raw);
+    if (!list) { alert('The saved backup is corrupted and cannot be restored.'); return; }
+    if (!confirm('Restore this backup and replace current sales history?')) return;
+    applyRestored(list);
+    alert('Last backup restored \u2014 ' + list.length + ' sale(s).');
+  }
+
   /* ---------- init ---------- */
+
 
   function init() {
     if (typeof CATALOG === 'undefined' || !CATALOG.length) {
@@ -469,6 +604,7 @@
     }
 
     load();
+    if (loadFailed) showStorageWarning();
     buildGames();
     applyProductFilter();
 
@@ -522,6 +658,16 @@
     });
 
     $('exportBtn').addEventListener('click', exportCsv);
+
+    $('backupBtn').addEventListener('click', downloadBackup);
+    $('restoreBtn').addEventListener('click', function () { $('restoreFile').click(); });
+    $('restoreFile').addEventListener('change', function () {
+      var file = this.files && this.files[0];
+      this.value = '';
+      restoreFromFile(file);
+    });
+    $('restoreLastBtn').addEventListener('click', restoreLastBackup);
+    $('warnRestoreBtn').addEventListener('click', restoreLastBackup);
 
     renderAll();
     renderCatalogPreview();
