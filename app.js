@@ -25,6 +25,7 @@
 
   function extraMarginOf(s) { return s.grossC - s.baseC - s.commC; }
   function businessNetOf(s) { return s.grossC - s.commC; }
+  function ownerEarningOf(s) { return s.type === 'TIP' ? 0 : s.commC; }
 
   function fmt(cents) {
     var neg = cents < 0;
@@ -182,7 +183,7 @@
     selectedProduct = p;
 
     if (!p) {
-      ['catRobux', 'catPrice', 'catBase', 'catComm', 'catMargin', 'catNet'].forEach(function (id) { $(id).textContent = '\u2014'; });
+      ['catRobux', 'catPrice', 'catBase', 'catComm', 'catOwnerEarning', 'catMargin', 'catNet'].forEach(function (id) { $(id).textContent = '\u2014'; });
       $('catMargin').className = '';
       $('catNet').className = '';
       $('catAdd').disabled = true;
@@ -198,6 +199,7 @@
     $('catPrice').textContent = fmt(price * qty);
     $('catBase').textContent = fmt(base * qty);
     $('catComm').textContent = fmt(comm * qty);
+    $('catOwnerEarning').textContent = fmt(comm * qty);
     $('catMargin').textContent = fmt(margin * qty);
     $('catMargin').className = margin < 0 ? 'neg' : '';
     $('catNet').textContent = fmt(net * qty);
@@ -247,7 +249,7 @@
     var qty = Math.max(1, Math.floor(Number($('manQty').value) || 1));
 
     if (robux <= 0) {
-      ['manSell', 'manBase', 'manComm', 'manMargin', 'manNet'].forEach(function (id) { $(id).textContent = '\u2014'; });
+      ['manSell', 'manBase', 'manComm', 'manOwnerEarning', 'manMargin', 'manNet'].forEach(function (id) { $(id).textContent = '\u2014'; });
       $('manMargin').className = '';
       $('manNet').className = '';
       $('manAdd').disabled = true;
@@ -262,6 +264,7 @@
     $('manSell').textContent = fmt(gross * qty);
     $('manBase').textContent = fmt(base * qty);
     $('manComm').textContent = fmt(comm * qty);
+    $('manOwnerEarning').textContent = fmt(comm * qty);
     $('manMargin').textContent = fmt(margin * qty);
     $('manMargin').className = margin < 0 ? 'neg' : '';
     $('manNet').textContent = fmt(net * qty);
@@ -401,12 +404,13 @@
       acc.gross += s.grossC * q;
       acc.base += s.baseC * q;
       acc.comm += s.commC * q;
+      acc.ownerEarning += ownerEarningOf(s) * q;
       acc.margin += extraMarginOf(s) * q;
       acc.net += businessNetOf(s) * q;
       acc.robux += s.robux * q;
       acc.count += 1;
       return acc;
-    }, { gross: 0, base: 0, comm: 0, margin: 0, net: 0, robux: 0, count: 0 });
+    }, { gross: 0, base: 0, comm: 0, ownerEarning: 0, margin: 0, net: 0, robux: 0, count: 0 });
   }
 
   function visibleSales() {
@@ -421,6 +425,7 @@
     $('statGross').textContent = fmt(t.gross);
     $('statBase').textContent = fmt(t.base);
     $('statCommission').textContent = fmt(t.comm);
+    $('statOwnerEarning').textContent = fmt(t.ownerEarning);
     $('statNet').textContent = fmt(t.net);
     $('statRobux').textContent = fmtRobux(t.robux);
     $('statCount').textContent = fmtRobux(t.count);
@@ -438,12 +443,13 @@
   function renderEarnings(list) {
     var groups = {};
     list.forEach(function (s) {
-      var g = groups[s.staff] || (groups[s.staff] = { staff: s.staff, count: 0, robux: 0, gross: 0, comm: 0 });
+      var g = groups[s.staff] || (groups[s.staff] = { staff: s.staff, count: 0, robux: 0, gross: 0, comm: 0, ownerEarning: 0 });
       var q = s.qty || 1;
       g.count += 1;
       g.robux += s.robux * q;
       g.gross += s.grossC * q;
       g.comm += s.commC * q;
+      g.ownerEarning += ownerEarningOf(s) * q;
     });
 
     var rows = Object.keys(groups).map(function (k) { return groups[k]; })
@@ -457,6 +463,7 @@
         '<td class="num">' + fmtRobux(g.robux) + '</td>' +
         '<td class="num">' + fmt(g.gross) + '</td>' +
         '<td class="num accent">' + fmt(g.comm) + '</td>' +
+        '<td class="num">' + fmt(g.ownerEarning) + '</td>' +
         '</tr>';
     }).join('');
 
@@ -491,7 +498,7 @@
 
     body.innerHTML = rows.map(function (s) {
       var q = s.qty || 1;
-      var margin = extraMarginOf(s), net = businessNetOf(s);
+      var margin = extraMarginOf(s), net = businessNetOf(s), ownerEarning = ownerEarningOf(s);
       return '<tr>' +
         '<td>' + esc(fmtTime(s.ts)) + '</td>' +
         '<td>' + esc(s.staff) + '</td>' +
@@ -503,6 +510,7 @@
         '<td class="num">' + fmt(s.grossC * q) + '</td>' +
         '<td class="num">' + fmt(s.baseC * q) + '</td>' +
         '<td class="num accent">' + fmt(s.commC * q) + '</td>' +
+        '<td class="num">' + fmt(ownerEarning * q) + '</td>' +
         '<td class="num' + (margin < 0 ? ' neg' : '') + '">' + fmt(margin * q) + '</td>' +
         '<td class="num' + (net < 0 ? ' neg' : '') + '">' + fmt(net * q) + '</td>' +
         '<td><button type="button" class="del-btn" data-del="' + esc(s.id) + '">Delete</button></td>' +
@@ -540,7 +548,7 @@
   /* ---------- CSV ---------- */
 
   var CSV_HEAD = ['Time', 'Staff', 'Type', 'Game / Description', 'Product', 'Robux', 'Qty',
-    'Gross Sale', 'Business Base', 'Commission', 'Extra Margin', 'Business Net'];
+    'Gross Sale', 'Business Base', 'Commission', 'Owner Earning', 'Extra Margin', 'Business Net'];
 
   function csvCell(v) {
     var s = String(v == null ? '' : v);
@@ -559,6 +567,7 @@
         s.gameDesc, s.product || '', s.robux, q,
         (s.grossC * q / 100).toFixed(2), (s.baseC * q / 100).toFixed(2),
         (s.commC * q / 100).toFixed(2),
+        (ownerEarningOf(s) * q / 100).toFixed(2),
         (extraMarginOf(s) * q / 100).toFixed(2),
         (businessNetOf(s) * q / 100).toFixed(2)
       ].map(csvCell).join(','));
