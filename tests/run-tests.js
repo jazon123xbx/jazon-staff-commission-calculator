@@ -225,6 +225,12 @@ function createApp(options) {
     const el = document.getElementById(id);
     if (Object.prototype.hasOwnProperty.call(defaults, id)) el.value = defaults[id];
   }
+  // Simulate a browser restoring form control values before scripts run.
+  if (options.elementValues) {
+    for (const id of Object.keys(options.elementValues)) {
+      document.getElementById(id).value = String(options.elementValues[id]);
+    }
+  }
   const dlg = document.getElementById('sessionDialog');
   dlg.open = false;
 
@@ -374,6 +380,25 @@ function legacySale(extra) {
     commC: 500,
     netC: 4000
   }, extra || {});
+}
+
+function makeSale(id, ts, staff, sessionId) {
+  const sale = {
+    id,
+    ts,
+    staff,
+    type: 'catalog',
+    gameDesc: 'Game ' + id,
+    product: 'Product ' + id,
+    robux: 100,
+    qty: 1,
+    grossC: 4500,
+    baseC: 4000,
+    commC: 500,
+    netC: 4000
+  };
+  if (sessionId) sale.sessionId = sessionId;
+  return sale;
 }
 
 /* ------------------------------------------------------------------ */
@@ -784,6 +809,171 @@ test('mobile layout safeguards exist for new sections', () => {
   assert.ok(/@media \(max-width:640px\)[\s\S]*\.daily-grid\{grid-template-columns:repeat\(2/.test(CSS));
   assert.ok(/@media \(max-width:640px\)[\s\S]*\.session-dialog\{width:100vw/.test(CSS));
   assert.ok(/@media \(max-width:1080px\)[\s\S]*\.session-meta/.test(CSS));
+});
+
+/* ------------------------------------------------------------------ */
+/* 8. Visible filter state is honored on load (browser-restored value).*/
+/* ------------------------------------------------------------------ */
+
+test('a restored Today selection filters history without a change event', () => {
+  const today = Date.UTC(2026, 10, 16, 2, 0, 0); // 2026-11-16 10:00 Manila
+  const oct30 = Date.UTC(2026, 9, 30, 2, 0, 0);  // 2026-10-30 10:00 Manila
+  const sess = {
+    id: 'sess-today', staff: 'Alice', number: 1,
+    startedAt: Date.UTC(2026, 10, 16, 1, 0, 0),
+    endedAt: Date.UTC(2026, 10, 16, 3, 0, 0),
+    status: 'finished'
+  };
+  const storageData = {
+    [STORE_KEY]: JSON.stringify([
+      makeSale('oct30', oct30, 'Legacy Staff'),
+      makeSale('today', today, 'Alice', sess.id)
+    ]),
+    [SESSION_KEY]: JSON.stringify([sess])
+  };
+
+  const all = createApp({ storageData });
+  assert.strictEqual(countMatches(historyHtml(all), /tr class="date-head"/g), 2);
+
+  // The browser can restore the <select> to "Today" before app.js runs,
+  // without dispatching "change". State must adopt that visible value.
+  const restored = createApp({ storageData, now: today, elementValues: { dateFilter: 'today' } });
+  assert.strictEqual(restored.el('dateFilter').value, 'today');
+  const html = historyHtml(restored);
+  assert.ok(html.includes('Monday, November 16, 2026'));
+  assert.ok(!html.includes('Friday, October 30, 2026'), 'older dates must not be shown');
+  assert.strictEqual(countMatches(html, /tr class="sale-row"/g), 1);
+  assert.strictEqual(restored.el('historyEmpty').hidden, true);
+  assert.strictEqual(restored.el('dailyTotals').hidden, false);
+  assert.ok(restored.el('dailyTotalsTitle').textContent.includes('Today'));
+  assert.strictEqual(restored.el('dailyCount').textContent, '1');
+});
+
+/* ------------------------------------------------------------------ */
+/* 9. Empty state: no fallback to older sales.                         */
+/* ------------------------------------------------------------------ */
+
+test('empty date result shows the required message and no older sales', () => {
+  const oct30 = Date.UTC(2026, 9, 30, 2, 0, 0);
+  const app = createApp({
+    storageData: { [STORE_KEY]: JSON.stringify([makeSale('oct30', oct30, 'Legacy Staff')]) },
+    elementValues: { dateFilter: 'today' }
+  });
+
+  assert.strictEqual(app.el('historyEmpty').hidden, false);
+  assert.strictEqual(app.el('historyEmpty').textContent, 'No sales found for the selected date.');
+  const html = historyHtml(app);
+  assert.ok(!html.includes('October 30'), 'older sales must not be rendered as a fallback');
+  assert.strictEqual(countMatches(html, /tr class="date-head"/g), 0);
+  assert.strictEqual(app.el('dailyTotals').hidden, false);
+  assert.strictEqual(app.el('dailyCount').textContent, '0');
+  assert.strictEqual(app.el('dailyGross').textContent, fmtPHP(0));
+  assert.strictEqual(app.el('statGross').textContent, fmtPHP(4500), 'all-time totals stay lifetime');
+
+  app.setSelect('dateFilter', 'all');
+  assert.ok(historyHtml(app).includes('Friday, October 30, 2026'));
+  assert.strictEqual(app.el('historyEmpty').hidden, true);
+});
+
+/* ------------------------------------------------------------------ */
+/* 10. Date + staff filters combine across legacy and session sales.   */
+/* ------------------------------------------------------------------ */
+
+test('custom date and staff filters combine for legacy and session sales', () => {
+  const nov16 = Date.UTC(2026, 10, 16, 2, 0, 0);
+  const oct30 = Date.UTC(2026, 9, 30, 2, 0, 0);
+  const nov15 = Date.UTC(2026, 10, 15, 2, 0, 0);
+  const session = (id, staff, ts) => ({
+    id, staff, number: 1, startedAt: ts - 3600000, endedAt: ts + 3600000, status: 'finished'
+  });
+  const storageData = {
+    [STORE_KEY]: JSON.stringify([
+      makeSale('a-oct30', oct30, 'Alice'),
+      makeSale('a-nov16', nov16, 'Alice', 'sess-a'),
+      makeSale('b-nov16', nov16, 'Bob', 'sess-b'),
+      makeSale('b-nov15', nov15, 'Bob', 'sess-c')
+    ]),
+    [SESSION_KEY]: JSON.stringify([
+      session('sess-a', 'Alice', nov16),
+      session('sess-b', 'Bob', nov16),
+      session('sess-c', 'Bob', nov15)
+    ])
+  };
+  const app = createApp({ storageData });
+
+  app.setSelect('dateFilter', 'custom');
+  app.setValue('customDate', '2026-10-30');
+  app.setSelect('histStaffFilter', 'Alice');
+  let html = historyHtml(app);
+  assert.ok(html.includes('Earlier Sales \u2014 Legacy History'));
+  assert.ok(html.includes('Game a-oct30'));
+  assert.ok(!html.includes('Game a-nov16'));
+  assert.strictEqual(countMatches(html, /tr class="sale-row"/g), 1);
+
+  app.setSelect('histStaffFilter', 'Bob');
+  assert.strictEqual(app.el('historyEmpty').hidden, false);
+  assert.strictEqual(app.el('historyEmpty').textContent, 'No sales found for the selected date.');
+  assert.strictEqual(countMatches(historyHtml(app), /tr class="sale-row"/g), 0);
+
+  app.setSelect('dateFilter', 'today');
+  app.setSelect('histStaffFilter', 'Bob');
+  html = historyHtml(app);
+  assert.ok(html.includes('Game b-nov16'));
+  assert.ok(!html.includes('Game b-nov15'));
+
+  app.setSelect('histStaffFilter', 'Alice');
+  html = historyHtml(app);
+  assert.ok(html.includes('Game a-nov16'));
+  assert.ok(!html.includes('Game a-oct30'));
+
+  app.setSelect('dateFilter', 'all');
+  html = historyHtml(app);
+  assert.ok(html.includes('Game a-oct30'));
+  assert.ok(html.includes('Game a-nov16'));
+  assert.ok(!html.includes('Game b-nov16'));
+});
+
+/* ------------------------------------------------------------------ */
+/* 11. Asia/Manila midnight boundary.                                  */
+/* ------------------------------------------------------------------ */
+
+test('date filters use Asia/Manila across the midnight boundary', () => {
+  const lateNov16 = Date.UTC(2026, 10, 16, 15, 59, 0); // 23:59 Manila
+  const earlyNov17 = Date.UTC(2026, 10, 16, 16, 0, 0);  // 00:00 Manila
+  const nowNov17 = Date.UTC(2026, 10, 17, 2, 0, 0);     // 10:00 Manila
+  const app = createApp({
+    storageData: {
+      [STORE_KEY]: JSON.stringify([
+        makeSale('late', lateNov16, 'Alice'),
+        makeSale('early', earlyNov17, 'Bob')
+      ])
+    },
+    now: nowNov17
+  });
+
+  assert.ok(historyHtml(app).includes('Monday, November 16, 2026'));
+  assert.ok(historyHtml(app).includes('Tuesday, November 17, 2026'));
+
+  app.setSelect('dateFilter', 'today');
+  let html = historyHtml(app);
+  assert.ok(html.includes('Game early'));
+  assert.ok(!html.includes('Game late'));
+
+  app.setSelect('dateFilter', 'yesterday');
+  html = historyHtml(app);
+  assert.ok(html.includes('Game late'));
+  assert.ok(!html.includes('Game early'));
+
+  app.setSelect('dateFilter', 'custom');
+  app.setValue('customDate', '2026-11-16');
+  html = historyHtml(app);
+  assert.ok(html.includes('Game late'));
+  assert.ok(!html.includes('Game early'));
+
+  // Clearing the custom date must never fall back to All Dates.
+  app.setValue('customDate', '');
+  html = historyHtml(app);
+  assert.ok(!html.includes('Game late'), 'custom with no date must not show other dates');
 });
 
 /* ------------------------------------------------------------------ */

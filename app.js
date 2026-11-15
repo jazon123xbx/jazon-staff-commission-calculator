@@ -102,6 +102,17 @@
 
   function manilaYesterdayKey() { return manilaDateKey(Date.now() - 86400000); }
 
+  // Date filter values are compared as Manila calendar keys (YYYY-MM-DD).
+  // Never derive them from Date#toISOString or locale text: both can resolve
+  // to the previous/next UTC day around Manila midnight.
+  function isDateKey(value) {
+    return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
+  }
+
+  function isDateFilter(value) {
+    return value === 'all' || value === 'today' || value === 'yesterday' || value === 'custom';
+  }
+
   function dateKeyLabel(key) {
     if (!key) return '';
     if (key === manilaTodayKey()) return 'Today';
@@ -723,7 +734,7 @@
   function selectedDateKey() {
     if (dateFilter === 'today') return manilaTodayKey();
     if (dateFilter === 'yesterday') return manilaYesterdayKey();
-    if (dateFilter === 'custom') return customDate || null;
+    if (dateFilter === 'custom') return isDateKey(customDate) ? customDate : manilaTodayKey();
     return null;
   }
 
@@ -732,6 +743,33 @@
     var key = selectedDateKey();
     if (!key) return list;
     return list.filter(function (s) { return manilaDateKey(s.ts) === key; });
+  }
+
+  // Browsers can restore a <select>/<input> value on reload (and on bfcache
+  // restores) without firing "change". Read the visible controls once at
+  // startup so the rendered history always agrees with what the user sees.
+  // An empty/invalid custom date deliberately falls back to Today instead of
+  // silently showing All Dates.
+  function syncDateFilterFromDom() {
+    var sel = $('dateFilter');
+    var value = sel ? sel.value : dateFilter;
+    if (!isDateFilter(value)) value = 'all';
+    dateFilter = value;
+    if (sel) sel.value = value;
+
+    var custom = value === 'custom';
+    var wrap = $('customDateWrap');
+    if (wrap) wrap.hidden = !custom;
+
+    var input = $('customDate');
+    if (!custom) {
+      customDate = '';
+      return;
+    }
+    var chosen = input ? input.value : customDate;
+    if (!isDateKey(chosen)) chosen = manilaTodayKey();
+    customDate = chosen;
+    if (input) input.value = chosen;
   }
 
   function sortSalesNewest(a, b) {
@@ -915,9 +953,18 @@
     });
 
     $('historyTable').tBodies[0].innerHTML = html;
-    $('historyEmpty').hidden = list.length > 0;
-    $('historyEmpty').textContent = list.length > 0 ? '' :
-      (sales.length ? 'No sales match the selected filters.' : 'No sales recorded yet. Add a sale above.');
+    var empty = $('historyEmpty');
+    empty.hidden = list.length > 0;
+    if (list.length) {
+      empty.textContent = '';
+    } else if (!sales.length) {
+      empty.textContent = 'No sales recorded yet. Add a sale above.';
+    } else if (selectedDateKey()) {
+      // A date filter is active: never fall back to showing older sales.
+      empty.textContent = 'No sales found for the selected date.';
+    } else {
+      empty.textContent = 'No sales found for the selected staff member.';
+    }
   }
 
   function renderDailyTotals() {
@@ -1238,11 +1285,9 @@
     }
     if (sessionReadFailed && parsed.sessions === null) showStorageWarning();
 
-    dateFilter = 'all';
-    customDate = '';
     $('dateFilter').value = 'all';
     $('customDate').value = '';
-    $('customDateWrap').hidden = true;
+    syncDateFilterFromDom();
 
     closeSessionDetails();
     renderAll();
@@ -1308,6 +1353,8 @@
     load();
     loadSessions();
     if (loadFailed || sessionsLoadFailed) showStorageWarning();
+    // Adopt any filter value the browser restored before the first render.
+    syncDateFilterFromDom();
     buildGames();
     applyProductFilter();
 
@@ -1403,21 +1450,21 @@
       renderAll();
     });
 
-    $('dateFilter').addEventListener('change', function () {
-      dateFilter = this.value;
-      var custom = dateFilter === 'custom';
-      $('customDateWrap').hidden = !custom;
-      if (custom && !$('customDate').value) $('customDate').value = manilaTodayKey();
-      customDate = custom ? $('customDate').value : '';
+    function applyDateFilter() {
+      syncDateFilterFromDom();
+      renderAll();
+    }
+    $('dateFilter').addEventListener('change', applyDateFilter);
+    $('dateFilter').addEventListener('input', applyDateFilter);
+    $('customDate').addEventListener('input', function () {
+      if (dateFilter !== 'custom') return;
+      customDate = isDateKey(this.value) ? this.value : '';
       renderAll();
     });
-    $('customDate').addEventListener('input', function () {
-      customDate = this.value;
-      if (dateFilter === 'custom') renderAll();
-    });
     $('customDate').addEventListener('change', function () {
-      customDate = this.value;
-      if (dateFilter === 'custom') renderAll();
+      if (dateFilter !== 'custom') return;
+      customDate = isDateKey(this.value) ? this.value : '';
+      renderAll();
     });
 
     $('historyTable').tBodies[0].addEventListener('click', function (e) {
