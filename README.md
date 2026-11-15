@@ -9,16 +9,52 @@ no authentication, no CDN, no network calls.
 ## How to use
 
 1. Open `index.html` in any modern browser (double-click it).
-2. Enter or select the **Staff Name**.
+2. Enter a **Staff Name** and press **Start New Calculation** in *Calculation Sessions*.
 3. Choose **Catalog Sale** (fixed products) or **Manual Gift Sale** (your own Robux cost).
-4. Fill in the fields and press **Add Sale**.
-5. Watch the summary cards, **Staff Earnings** and **Sales History** update immediately.
-6. Press **Export CSV** whenever you need a record of staff sales / commissions.
+4. Fill in the fields and press **Add Sale** — while that staff member's calculation is
+   active, every new sale is attached to that session automatically.
+5. Press **Finish Calculation** when the batch is done. Its final totals open immediately.
+6. Watch the all-time summary cards, **Staff Earnings** and **Daily Sales History** update.
+7. Press **Export CSV** for the current history filter, or **Export This Calculation (CSV)**
+   from an open session.
 
-Sales are saved in your browser's `localStorage`, so they survive a page refresh.
-Use **Clear All Sales** to wipe everything (it asks for confirmation first).
-Use the **Staff Filter** in the top bar to show one staff member only — dashboard
-totals, earnings, history and the CSV export all follow that filter.
+Sales and calculation sessions are saved in your browser's `localStorage`, so they
+survive a page refresh. Use **Clear All Sales** to wipe everything (it asks for
+confirmation first). Use the **Staff Filter** in the top bar or in *Daily Sales History*
+to show one staff member only — dashboard totals, earnings, history and the CSV export
+all follow that filter.
+
+## Calculation sessions
+
+A session is one staff member's calculation batch:
+
+- unique session ID, staff member, per-staff session number, start date/time,
+  end date/time and status (`Active` / `Finished`)
+- new sales are attached only to the **active** session of that exact staff member
+- a finished session never receives new sales; starting the same staff again creates
+  a **new** session, even on the same date
+- a staff member cannot have two active sessions at once
+- session totals are calculated from only that session's sales and are never mixed
+  with daily or lifetime totals
+
+The *Active Calculation* banner stays visible at the top of the calculator until the
+session is finished. **View Previous Calculations** lists every session; **View** opens
+the full details: date, staff, session number, start/end time, every sale, and session
+totals for gross sales, Robux, business base, staff commission, owner earning, extra
+margin and business net.
+
+## Daily sales history
+
+History is grouped by each sale's actual saved timestamp using **Asia/Manila** calendar
+dates. Dates appear above their groups with day totals, newest transactions first.
+
+Filters: **All Dates**, **Today**, **Yesterday**, **Custom Date** and **Staff Member**.
+When a specific date is selected, a separate **Daily Totals** panel appears. Daily and
+session totals are intentionally kept apart from the all-time summary cards.
+
+Older sales without a session ID are never rewritten or assigned to an invented
+session. They appear under their original transaction date in
+**Earlier Sales — Legacy History**, with their original figures intact.
 
 ## Locked rates
 
@@ -82,11 +118,17 @@ JSON backup/restore. An empty note is stored as `Staff Tip`.
 
 ## Backups
 
-| Button (in Sales History) | What it does |
+| Button (in Daily Sales History) | What it does |
 | --- | --- |
-| **Download JSON Backup** | Downloads the full sales array from `jazon.staff.commission.sales.v1` as `jazon-sales-backup-YYYY-MM-DD-HHMM.json`. Nothing else is included. |
-| **Restore JSON Backup** | Opens a local `.json` file picker. The file is parsed and every record validated first — malformed, unrelated or partially invalid files are rejected outright with no import. You are then asked *"Restore this backup and replace current sales history?"* before anything is overwritten. |
-| **Restore Last Backup** | Recovers from the automatic snapshot below (asks for the same confirmation). If no snapshot exists yet it simply says so. |
+| **Download JSON Backup** | Downloads `jazon-sales-backup-YYYY-MM-DD-HHMM.json` containing the full sales array **and** all calculation sessions, including sale-to-session associations. |
+| **Restore JSON Backup** | Opens a local `.json` file picker. Both the current object backup and older bare sales-array backups are accepted. Every sale and session record is validated first — malformed, unrelated or partially invalid files are rejected outright with no import. You are then asked for confirmation before anything is replaced. |
+| **Restore Last Backup** | Recovers from the automatic sales snapshot below and, when available, the automatic session snapshot (asks for the same confirmation). If no snapshot exists yet it simply says so. |
+
+Session metadata lives separately in `jazon.staff.commission.sessions.v1`. Sales keep
+using the same `jazon.staff.commission.sales.v1` key and the same record fields; a new
+sale may only gain an optional `sessionId`. No old sale is migrated, reassigned or
+rewritten. A legacy sales-only backup restores its sales exactly as before and keeps
+the current calculation-session records instead of deleting them.
 
 **Automatic snapshot** — every successful save first copies the current *valid* history
 to `jazon.staff.commission.sales.backup.v1`, then writes the new history to the main key.
@@ -118,7 +160,8 @@ figure rounds exactly to 2 decimal places.
 | `index.html` | Page structure |
 | `styles.css` | Dark dashboard styling (responsive) |
 | `catalog.js` | 156 fixed GAME_GIFT products |
-| `app.js` | Calculations, storage, filtering, CSV export |
+| `app.js` | Calculations, calculation sessions, date grouping, storage, filtering, CSV export |
+| `tests/run-tests.js` | Deterministic local tests using a fake DOM/localStorage (`node tests/run-tests.js`) |
 | `README.md` | This file |
 
 ## Privacy

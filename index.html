@@ -40,6 +40,11 @@
 
 <main>
 
+  <div class="summary-head">
+    <h2>All-time Totals</h2>
+    <span>Lifetime records (follows Staff Filter) &#8212; not a daily total and not a calculation-session total.</span>
+  </div>
+
   <section class="cards" id="summaryCards" aria-label="Sales summary">
     <div class="card stat"><span class="stat-label">Gross Sales</span><span class="stat-value" id="statGross">&#8369;0.00</span></div>
     <div class="card stat"><span class="stat-label">Business Base</span><span class="stat-value" id="statBase">&#8369;0.00</span></div>
@@ -53,10 +58,53 @@
   <p class="filter-note" id="filterNote" hidden></p>
 
   <div class="storage-warning" id="storageWarning" hidden role="alert">
-    <b>Sales history could not be read.</b>
+    <b>Saved data could not be read.</b>
     <span id="storageWarningText"></span>
     <button type="button" class="btn" id="warnRestoreBtn">Restore Last Backup</button>
   </div>
+
+  <section class="card" id="sessionCard">
+    <div class="card-head">
+      <h2>Calculation Sessions</h2>
+      <div class="actions">
+        <button type="button" class="btn" id="viewSessionsBtn">View Previous Calculations</button>
+      </div>
+    </div>
+
+    <div class="active-sessions" id="activeSessionPanel" hidden></div>
+
+    <div class="session-start">
+      <div class="field">
+        <label for="sessionStaff">Staff Name for New Calculation</label>
+        <input type="text" id="sessionStaff" list="staffList" placeholder="e.g. Juan Dela Cruz" autocomplete="off">
+      </div>
+      <button type="button" class="btn primary session-start-btn" id="startSessionBtn">Start New Calculation</button>
+    </div>
+    <p class="hint session-hint" id="sessionHint">Start a calculation to group all new sales for one staff member into a single session.</p>
+
+    <div class="session-list-head" id="sessionListHead">
+      <h3>Previous Calculations</h3>
+      <span class="muted" id="sessionCount"></span>
+    </div>
+    <div class="table-wrap">
+      <table id="sessionTable">
+        <thead>
+          <tr>
+            <th>Started</th>
+            <th>Staff</th>
+            <th>Session</th>
+            <th>Status</th>
+            <th class="num">Sales</th>
+            <th class="num">Gross Sales</th>
+            <th class="num">Staff Commission</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="empty" id="sessionEmpty">No calculations yet. Start one above.</p>
+  </section>
 
   <section class="entry-grid">
 
@@ -208,7 +256,7 @@
 
   <section class="card" id="historyCard">
     <div class="card-head">
-      <h2>Sales History</h2>
+      <h2>Daily Sales History</h2>
       <div class="actions">
         <button type="button" class="btn" id="exportBtn">Export CSV</button>
         <button type="button" class="btn" id="backupBtn">Download JSON Backup</button>
@@ -218,6 +266,47 @@
         <input type="file" id="restoreFile" accept=".json,application/json" hidden>
       </div>
     </div>
+
+    <div class="history-filters">
+      <label class="filter-field">
+        <span>Date</span>
+        <select id="dateFilter">
+          <option value="all">All Dates</option>
+          <option value="today">Today</option>
+          <option value="yesterday">Yesterday</option>
+          <option value="custom">Custom Date</option>
+        </select>
+      </label>
+      <label class="filter-field" id="customDateWrap" hidden>
+        <span>Custom Date</span>
+        <input type="date" id="customDate">
+      </label>
+      <label class="filter-field">
+        <span>Staff Member</span>
+        <select id="histStaffFilter">
+          <option value="">All Staff</option>
+        </select>
+      </label>
+    </div>
+    <p class="history-note">Browse by Staff &#8594; Date &#8594; Calculation Session &#8594; Sales details. Daily and session totals are never lifetime earnings.</p>
+
+    <div class="daily-totals" id="dailyTotals" hidden>
+      <div class="daily-totals-head">
+        <h3 id="dailyTotalsTitle">Daily Totals</h3>
+        <span>This date only &#8212; separate from all-time totals.</span>
+      </div>
+      <div class="daily-grid">
+        <div class="daily-item"><span>Total Sales</span><b id="dailyCount">0</b></div>
+        <div class="daily-item"><span>Total Robux</span><b id="dailyRobux">0</b></div>
+        <div class="daily-item"><span>Gross Sales</span><b id="dailyGross">&#8369;0.00</b></div>
+        <div class="daily-item"><span>Business Base</span><b id="dailyBase">&#8369;0.00</b></div>
+        <div class="daily-item"><span>Staff Commission</span><b class="accent" id="dailyCommission">&#8369;0.00</b></div>
+        <div class="daily-item"><span>Owner Earning</span><b id="dailyOwnerEarning">&#8369;0.00</b></div>
+        <div class="daily-item"><span>Extra Margin</span><b id="dailyMargin">&#8369;0.00</b></div>
+        <div class="daily-item"><span>Business Net</span><b id="dailyNet">&#8369;0.00</b></div>
+      </div>
+    </div>
+
     <div class="table-wrap">
       <table id="historyTable">
         <thead>
@@ -249,8 +338,43 @@
 <datalist id="staffList"></datalist>
 
 <footer class="foot">
-  <p>Local only &#8212; sales are saved in this browser via localStorage. No server, no account, no network.</p>
+  <p>Local only &#8212; sales and calculation sessions are saved in this browser via localStorage. No server, no account, no network.</p>
 </footer>
+
+<dialog id="sessionDialog" class="session-dialog" aria-labelledby="sessionDialogTitle">
+  <div class="dialog-head">
+    <h2 id="sessionDialogTitle">Calculation Details</h2>
+    <button type="button" class="btn" id="closeSessionDialog">Close</button>
+  </div>
+  <div class="session-meta" id="sessionDialogMeta"></div>
+  <div class="table-wrap session-detail-wrap">
+    <table id="sessionSalesTable">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Type</th>
+          <th>Game / Description</th>
+          <th>Product</th>
+          <th class="num">Robux</th>
+          <th class="num">Quantity</th>
+          <th class="num">Gross Sale</th>
+          <th class="num">Business Base</th>
+          <th class="num">Staff Commission</th>
+          <th class="num">Owner Earning</th>
+          <th class="num">Extra Margin</th>
+          <th class="num">Business Net</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <p class="empty" id="sessionDialogEmpty">No sales in this calculation.</p>
+  <div class="session-totals" id="sessionDialogTotals"></div>
+  <div class="dialog-actions">
+    <button type="button" class="btn" id="sessionExportBtn">Export This Calculation (CSV)</button>
+    <button type="button" class="btn danger" id="sessionFinishBtn" hidden>Finish Calculation</button>
+  </div>
+</dialog>
 
 <script src="catalog.js"></script>
 <script src="app.js"></script>
